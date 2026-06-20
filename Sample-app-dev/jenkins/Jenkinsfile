@@ -25,7 +25,7 @@ pipeline {
                 sh '''
                     minikube image load api-leave:${BUILD_NUMBER}
                     echo "Waiting 15 seconds for Minikube to fully process and cache the image layers..."
-                    sleep 15
+                    sleep 40
                     kubectl set image deployment/api-leave-deployment api-leave-container=api-leave:${BUILD_NUMBER}
                     kubectl rollout status deployment/api-leave-deployment
                 '''
