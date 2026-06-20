@@ -12,8 +12,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Building the Docker image..."
-                    docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} .
-                    
+                    docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} Sample-app-dev/                    
                     echo "Logging into Docker Hub..."
                     echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
                 '''
