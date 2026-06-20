@@ -50,7 +50,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Minikube') {
+        stage('Deploy to cluster') {
             steps {
                 sh '''
                     echo "Instructing Kubernetes to pull and deploy the new registry image..."
