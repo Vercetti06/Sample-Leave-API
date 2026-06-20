@@ -11,7 +11,7 @@ pipeline {
             steps {
                 sh '''
                     # 1. Point the Jenkins terminal straight inside Minikube's internal Docker daemon
-                    eval $(minikube -p minikube docker-env)
+                    eval $(minikube docker-env)
                     
                     # 2. This builds the image DIRECTLY inside the cluster registry
                     docker build -t leave-api:${BUILD_NUMBER} Sample-app-dev/
@@ -23,7 +23,7 @@ pipeline {
             steps {
                 sh '''
                     # Point to Minikube's internal engine to find your newly built image
-                    eval $(minikube -p minikube docker-env)
+                    eval $(minikube docker-env)
                     docker run -d --name test-container -p 8001:8000 api-leave:${BUILD_NUMBER}
                     sleep 5
                     curl -f http://localhost:8001/health
