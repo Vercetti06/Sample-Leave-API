@@ -23,7 +23,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                    minikube image load leave-api:${BUILD_NUMBER}
+                    #minikube image load leave-api:${BUILD_NUMBER}
                     kubectl set image deployment/api-leave-deployment api-leave-container=leave-api:${BUILD_NUMBER}
                     kubectl rollout status deployment/api-leave-deployment
                 '''
