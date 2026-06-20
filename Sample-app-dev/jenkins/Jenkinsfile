@@ -4,14 +4,14 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'docker build -t leave-api:${BUILD_NUMBER} Sample-app-dev/'
+                sh 'docker build -t api-leave:${BUILD_NUMBER} Sample-app-dev/'
             }
         }
 
         stage('Test') {
             steps {
                 sh '''
-                    docker run -d --name test-container -p 8001:8000 leave-api:${BUILD_NUMBER}
+                    docker run -d --name test-container -p 8001:8000 api-leave:${BUILD_NUMBER}
                     sleep 5
                     curl -f http://localhost:8001/health
                     docker stop test-container
@@ -24,7 +24,7 @@ pipeline {
             steps {
                 sh '''
                     minikube image load leave-api:${BUILD_NUMBER}
-                    kubectl set image deployment/api-leave-deployment api-leave-container=leave-api:${BUILD_NUMBER}
+                    kubectl set image deployment/api-leave-deployment api-leave-container=api-leave:${BUILD_NUMBER}
                     kubectl rollout status deployment/api-leave-deployment
                 '''
             }
