@@ -1,20 +1,21 @@
 pipeline {
     agent any
-
-     environment {
-        MINIKUBE_HOME = '/var/lib/jenkins'
-        KUBECONFIG    = '/var/lib/jenkins/.kube/config'
+    
+    environment {
+        REGISTRY_USER = 'vercetti06'
+        IMAGE_NAME    = 'api-leave'
+        DOCKER_HUB    = credentials('docker-hub-credentials')
     }
 
     stages {
-        stage('Build') {
+        stage('Build & Login') {
             steps {
                 sh '''
-                    # 1. Point the Jenkins terminal straight inside Minikube's internal Docker daemon
-                    eval $(minikube docker-env)
+                    echo "Building the Docker image..."
+                    docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} .
                     
-                    # 2. This builds the image DIRECTLY inside the cluster registry
-                    docker build -t leave-api:${BUILD_NUMBER} Sample-app-dev/
+                    echo "Logging into Docker Hub..."
+                    echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
                 '''
             }
         }
@@ -22,24 +23,41 @@ pipeline {
         stage('Test') {
             steps {
                 sh '''
-                    # Point to Minikube's internal engine to find your newly built image
-                    eval $(minikube docker-env)
-                    docker run -d --name test-container -p 8001:8000 api-leave:${BUILD_NUMBER}
+                    echo "Starting test container..."
+                    docker run -d --name test-container -p 8001:8000 ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    
+                    echo "Waiting for app to start..."
                     sleep 5
+                    
+                    echo "Running health check query..."
                     curl -f http://localhost:8001/health
+                    
+                    echo "Cleaning up test container..."
                     docker stop test-container
                     docker rm test-container
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Push to Docker Hub') {
             steps {
                 sh '''
-                    #minikube image load api-leave:${BUILD_NUMBER}
-                    #echo "Waiting 15 seconds for Minikube to fully process and cache the image layers..."
-                    #sleep 15
-                    kubectl set image deployment/api-leave-deployment api-leave-container=api-leave:${BUILD_NUMBER}
+                    echo "Pushing verified image to cloud registry..."
+                    docker push ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    
+                    echo "Cleaning up local images to clear disk space..."
+                    docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Deploy to Minikube') {
+            steps {
+                sh '''
+                    echo "Instructing Kubernetes to pull and deploy the new registry image..."
+                    kubectl set image deployment/api-leave-deployment api-leave-container=${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    
+                    echo "Monitoring deployment progress..."
                     kubectl rollout status deployment/api-leave-deployment
                 '''
             }
@@ -48,10 +66,11 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline completed successfully — image built, tested, and deployed.'
+            echo 'Pipeline completed successfully — image built, tested, and deployed.'       
         }
         failure {
             echo 'Pipeline failed — check the stage logs above to find exactly where.'
-        }
+}
     }
 }
+
