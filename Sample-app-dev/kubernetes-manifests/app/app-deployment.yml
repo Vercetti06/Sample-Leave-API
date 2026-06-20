@@ -17,8 +17,7 @@ spec:
     spec:
       containers:
         - name: api-leave-container
-          image: api-leave:v1
-          imagePullPolicy: Never
+          image: vercetti06/api-leave:v1
           ports:
             - containerPort: 8000
           env:
