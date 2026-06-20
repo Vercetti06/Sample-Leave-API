@@ -9,13 +9,21 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'docker build -t api-leave:${BUILD_NUMBER} Sample-app-dev/'
+                sh '''
+                    # 1. Point the Jenkins terminal straight inside Minikube's internal Docker daemon
+                    eval $(minikube -p minikube docker-env)
+                    
+                    # 2. This builds the image DIRECTLY inside the cluster registry
+                    docker build -t leave-api:${BUILD_NUMBER} Sample-app-dev/
+                '''
             }
         }
 
         stage('Test') {
             steps {
                 sh '''
+                    # Point to Minikube's internal engine to find your newly built image
+                    eval $(minikube -p minikube docker-env)
                     docker run -d --name test-container -p 8001:8000 api-leave:${BUILD_NUMBER}
                     sleep 5
                     curl -f http://localhost:8001/health
@@ -28,9 +36,9 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                    minikube image load api-leave:${BUILD_NUMBER}
-                    echo "Waiting 15 seconds for Minikube to fully process and cache the image layers..."
-                    sleep 40
+                    #minikube image load api-leave:${BUILD_NUMBER}
+                    #echo "Waiting 15 seconds for Minikube to fully process and cache the image layers..."
+                    #sleep 15
                     kubectl set image deployment/api-leave-deployment api-leave-container=api-leave:${BUILD_NUMBER}
                     kubectl rollout status deployment/api-leave-deployment
                 '''
