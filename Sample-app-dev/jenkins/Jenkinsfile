@@ -4,18 +4,39 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                echo 'Build stage placeholder'
+                sh 'docker build -t leave-api:${BUILD_NUMBER} .'
             }
         }
+
         stage('Test') {
             steps {
-                echo 'Test stage placeholder'
+                sh '''
+                    docker run -d --name test-container -p 8001:8000 leave-api:${BUILD_NUMBER}
+                    sleep 5
+                    curl -f http://localhost:8001/health
+                    docker stop test-container
+                    docker rm test-container
+                '''
             }
         }
+
         stage('Deploy') {
             steps {
-                echo 'Deploy stage placeholder'
+                sh '''
+                    minikube image load leave-api:${BUILD_NUMBER}
+                    kubectl set image deployment/api-leave-deployment api-leave-container=leave-api:${BUILD_NUMBER}
+                    kubectl rollout status deployment/api-leave-deployment
+                '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully — image built, tested, and deployed.'
+        }
+        failure {
+            echo 'Pipeline failed — check the stage logs above to find exactly where.'
         }
     }
 }
