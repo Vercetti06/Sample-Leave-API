@@ -68,17 +68,16 @@ echo "5/5: Starting Minikube and Linking Cluster Configs to Jenkins..."
 echo "================================================================="
 # We use 'sg docker' here so minikube can start using the docker driver 
 # without requiring you to log out and log back in right now.
-minikube start
-
-#enabling metrics server for HPA ressource
-minikube addons enable metrics-server
-kubectl get pods -n kube-system | grep metrics-server
-
-#enabling ingress 
-minikube addons enable ingress
-kubectl get pods -n ingress-nginx
+sg docker << 'EOF'
+  minikube start --driver=docker
+  minikube addons enable metrics-server
+  kubectl get pods -n kube-system | grep metrics-server
+  minikube addons enable ingress
+  kubectl get pods -n ingress-nginx
+EOF
 
 echo "Syncing Kubernetes certificates to Jenkins service account..."
+
 # Create configuration paths inside Jenkins home directory
 sudo mkdir -p /var/lib/jenkins/.kube
 sudo mkdir -p /var/lib/jenkins/.minikube
