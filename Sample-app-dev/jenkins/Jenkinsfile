@@ -48,7 +48,7 @@ pipeline {
             }
         }
 
-                                stage('Quality Gate (API Polling)') {
+                                       stage('Quality Gate (API Polling)') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     script {
@@ -63,44 +63,45 @@ pipeline {
                             def props = readProperties file: taskFile
                             def taskUrl = props['ceTaskUrl']
                             
-                            // 1. Poll the background task API until the status switches to SUCCESS
+                            // 1. Native Jenkins Polling for the Task Status
                             def status = "PENDING"
                             while (status == "PENDING" || status == "IN_PROGRESS") {
                                 echo "Analysis processing status: ${status}. Waiting 10 seconds..."
                                 sleep 10
                                 
-                                withEnv(["TASK_URL=${taskUrl}"]) {
-                                    def response = sh(script: 'curl -s -u "${SONAR_AUTH_TOKEN}:" "$TASK_URL"', returnStdout: true).trim()
-                                    def json = readJSON text: response
-                                    status = json.task.status
-                                }
+                                // Performs native HTTP get request using the injected auth token automatically
+                                def response = httpRequest(
+                                    url: taskUrl,
+                                    authentication: 'sonarqube-cloud-token', // Matches your Global Credential Secret Text ID
+                                    quiet: true
+                                )
+                                def json = readJSON text: response.content
+                                status = json.task.status
                             }
                             
                             if (status == "SUCCESS") {
-                                def analysisId = ""
-                                withEnv(["TASK_URL=${taskUrl}"]) {
-                                    def response = sh(script: 'curl -s -u "${SONAR_AUTH_TOKEN}:" "$TASK_URL"', returnStdout: true).trim()
-                                    def json = readJSON text: response
-                                    analysisId = json.task.analysisId
-                                }
+                                // Extract the completion analysis identity marker
+                                def response = httpRequest(url: taskUrl, authentication: 'sonarqube-cloud-token', quiet: true)
+                                def json = readJSON text: response.content
+                                def finalAnalysisId = json.task.analysisId
                                 
-                                echo "Task analysis ID extracted: ${analysisId}"
+                                echo "Task analysis ID extracted: ${finalAnalysisId}"
                                 
-                                // 2. FIX: Construct the full URL explicitly inside the shell execution environment
-                                withEnv(["ANALYSIS_ID=${analysisId}"]) {
-                                    def gateResponse = sh(
-                                        script: 'curl -s -u "${SONAR_AUTH_TOKEN}:" "https://sonarcloud.io{ANALYSIS_ID}"', 
-                                        returnStdout: true
-                                    ).trim()
-                                    
-                                    def gateJson = readJSON text: gateResponse
-                                    def gateStatus = gateJson.projectStatus.status
-                                    
-                                    echo "SonarQube Cloud Quality Gate Evaluation: [${gateStatus}]"
-                                    
-                                    if (gateStatus == 'ERROR' || gateStatus == 'WARN') {
-                                        error "Pipeline aborted! Code failed the SonarQube Quality Gate parameters."
-                                    }
+                                // 2. Native Jenkins Fetching for the Quality Gate Metric
+                                def gateUrl = "https://sonarcloud.io{finalAnalysisId}"
+                                def gateResponse = httpRequest(
+                                    url: gateUrl,
+                                    authentication: 'sonarqube-cloud-token',
+                                    quiet: true
+                                )
+                                
+                                def gateJson = readJSON text: gateResponse.content
+                                def gateStatus = gateJson.projectStatus.status
+                                
+                                echo "SonarQube Cloud Quality Gate Evaluation Result: [${gateStatus}]"
+                                
+                                if (gateStatus == 'ERROR' || gateStatus == 'WARN') {
+                                    error "Pipeline aborted! Code failed the SonarQube Quality Gate parameters."
                                 }
                             } else {
                                 error "SonarQube Cloud background processing execution failed: ${status}"
