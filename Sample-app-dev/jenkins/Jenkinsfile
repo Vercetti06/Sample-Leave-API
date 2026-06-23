@@ -98,7 +98,7 @@ pipeline {
                 git config user.name "Verectti06"
 
                 git add ${TARGET_FILE}
-                git commit -m "Update image tracking to build ${BUILD_NUMBER} [skip ci]" || true
+                git commit -m "Update image tracking to build ${BUILD_NUMBER}" || true
 
                 git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/Sample-Leave-API.git
                 git push origin HEAD:main
