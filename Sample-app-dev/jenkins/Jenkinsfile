@@ -41,7 +41,7 @@ pipeline {
                               -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                               -Dsonar.organization=${SONAR_ORG_KEY} \
                               -Dsonar.sources=Sample-app-dev/ \
-                              -Dsonar.inclusions="**/*.py,**/requirements.txt"
+                              -Dsonar.inclusions="**/*.py,**/requirements.txt" \
                               -Dsonar.qualitygate.wait=true
                         """
                     }
