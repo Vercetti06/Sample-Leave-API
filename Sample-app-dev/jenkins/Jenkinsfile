@@ -48,7 +48,7 @@ pipeline {
             }
         }
 
-                                       stage('Quality Gate (API Polling)') {
+                                              stage('Quality Gate (API Polling)') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     script {
@@ -63,16 +63,23 @@ pipeline {
                             def props = readProperties file: taskFile
                             def taskUrl = props['ceTaskUrl']
                             
+                            // Encode the token to Base64 format for the standard HTTP basic auth header.
+                            // The trailing colon (:) is required to represent an empty password.
+                            def encodedAuth = "${SONAR_AUTH_TOKEN}:".getBytes().encodeBase64().toString()
+                            def authHeader = [
+                                name: 'Authorization', 
+                                value: "Basic ${encodedAuth}"
+                            ]
+                            
                             // 1. Native Jenkins Polling for the Task Status
                             def status = "PENDING"
                             while (status == "PENDING" || status == "IN_PROGRESS") {
                                 echo "Analysis processing status: ${status}. Waiting 10 seconds..."
                                 sleep 10
                                 
-                                // Performs native HTTP get request using the injected auth token automatically
                                 def response = httpRequest(
                                     url: taskUrl,
-                                    authentication: 'sonarqube-cloud-token', // Matches your Global Credential Secret Text ID
+                                    customHeaders: [authHeader],
                                     quiet: true
                                 )
                                 def json = readJSON text: response.content
@@ -81,7 +88,11 @@ pipeline {
                             
                             if (status == "SUCCESS") {
                                 // Extract the completion analysis identity marker
-                                def response = httpRequest(url: taskUrl, authentication: 'sonarqube-cloud-token', quiet: true)
+                                def response = httpRequest(
+                                    url: taskUrl, 
+                                    customHeaders: [authHeader], 
+                                    quiet: true
+                                )
                                 def json = readJSON text: response.content
                                 def finalAnalysisId = json.task.analysisId
                                 
@@ -91,7 +102,7 @@ pipeline {
                                 def gateUrl = "https://sonarcloud.io{finalAnalysisId}"
                                 def gateResponse = httpRequest(
                                     url: gateUrl,
-                                    authentication: 'sonarqube-cloud-token',
+                                    customHeaders: [authHeader],
                                     quiet: true
                                 )
                                 
