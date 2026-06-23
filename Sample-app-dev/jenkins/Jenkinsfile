@@ -2,23 +2,20 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub Metadata
-        REGISTRY_USER    = 'vercetti06'
-        IMAGE_NAME       = 'api-leave'
-        DOCKER_HUB       = credentials('docker-hub-credentials')
+        REGISTRY_USER     = 'vercetti06'
+        IMAGE_NAME        = 'api-leave'
+        DOCKER_HUB        = credentials('docker-hub-credentials')
 
-        // SonarQube Cloud Metadata
         SONAR_PROJECT_KEY = 'Vercetti06_Sample-Leave-API'
         SONAR_ORG_KEY     = 'ercetti06'
 
-        // Target Deployment Manifest Path inside the repo
-        TARGET_FILE      = 'Sample-app-dev/kubernetes-manifests/app/app-deployment.yml'
+        TARGET_FILE       = 'Sample-app-dev/kubernetes-manifests/app/app-deployment.yml'
+        GIT_REPO_URL      = 'https://github.com/Sample-Leave-API.git'
     }
 
     stages {
         stage('Checkout Source Code') {
             steps {
-                // Pulls down entire repository layout
                 checkout scm
             }
         }
@@ -34,14 +31,12 @@ pipeline {
                 withSonarQubeEnv('SonarQubeCloud') {
                     script {
                         def scannerHome = tool 'SonarScanner'
-                        
-                        // Targeted scanning: ONLY scans app files (python and text files)
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
                               -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                               -Dsonar.organization=${SONAR_ORG_KEY} \
                               -Dsonar.sources=Sample-app-dev/ \
-                              -Dsonar.inclusions="**/*.py,**/requirements.txt" \
+                              -Dsonar.inclusions=**/*.py,**/requirements.txt \
                               -Dsonar.qualitygate.wait=true
                         """
                     }
@@ -49,33 +44,24 @@ pipeline {
             }
         }
 
-                                                        
         stage('Trivy FS Scan') {
-    steps {
-        script {
-            def targets = [
-                'Sample-app-dev/main.py',
-                'Sample-app-dev/requirements.txt'
-            ]
-            targets.each { t ->
-                sh "trivy fs --exit-code 0 --severity HIGH,CRITICAL ${t}"
+            steps {
+                sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL Sample-app-dev'
             }
         }
-    }
-}
 
         stage('Unit & Health Test') {
             steps {
                 sh '''
                     echo "Starting test container..."
                     docker run -d --name test-container -p 8001:8000 ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
-                    
+
                     echo "Giving application lifecycle initialization room..."
                     sleep 5
-                    
+
                     echo "Verifying service endpoints..."
                     curl -f http://localhost:8001/health
-                    
+
                     echo "Tearing down runtime resources..."
                     docker stop test-container
                     docker rm test-container
@@ -99,38 +85,30 @@ pipeline {
         }
 
         stage('Update Manifest & Push Changes') {
-            steps {
-                // Reuses your GitHub Credentials profile to push changes back securely
-                withCredentials([usernamePassword(
-                    credentialsId: 'github-creds', // GitHub Personal Access Token credential ID
-                    usernameVariable: 'GIT_USER',
-                    passwordVariable: 'GIT_TOKEN'
-                )]) {
-                    sh """
-                        # 1. Update the image tag in the deployment file locally
-                        sed -i "s|image: ${REGISTRY_USER}/${IMAGE_NAME}:.*|image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}|" ${TARGET_FILE}
-                    
-                        git config user.email "yaswanth.padakandla@gmail.com"
-                        git config user.name "Verectti06"
-                        
-                        # Stage the specific updated manifest file
-                        git add ${TARGET_FILE}
-                        
-                        # Commit change with a [skip ci] tag to prevent an infinite loop build
-                        git commit -m "Update image tracking to build ${BUILD_NUMBER} [skip ci]"
-                        
-                        # Overwrite the remote URL layout to include authentication tokens and push
-                        git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@://github.com
-                        git push origin HEAD:main
-                    """
-                }
-            }
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'github-creds',
+            usernameVariable: 'GIT_USER',
+            passwordVariable: 'GIT_TOKEN'
+        )]) {
+            sh """
+                sed -i 's|image: ${REGISTRY_USER}/${IMAGE_NAME}:.*|image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}|' ${TARGET_FILE}
+
+                git config user.email "yaswanth.padakandla@gmail.com"
+                git config user.name "Verectti06"
+
+                git add ${TARGET_FILE}
+                git commit -m "Update image tracking to build ${BUILD_NUMBER} [skip ci]" || true
+
+                git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/Sample-Leave-API.git
+                git push origin HEAD:main
+            """
         }
     }
+}
 
     post {
         always {
-            // Housekeeping: Removes local artifact footprint to maintain disk hygiene
             sh "docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
         }
         success {
