@@ -48,7 +48,7 @@ pipeline {
             }
         }
 
-                                              stage('Quality Gate (API Polling)') {
+                                                      stage('Quality Gate (API Polling)') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     script {
@@ -63,14 +63,6 @@ pipeline {
                             def props = readProperties file: taskFile
                             def taskUrl = props['ceTaskUrl']
                             
-                            // Encode the token to Base64 format for the standard HTTP basic auth header.
-                            // The trailing colon (:) is required to represent an empty password.
-                            def encodedAuth = "${SONAR_AUTH_TOKEN}:".getBytes().encodeBase64().toString()
-                            def authHeader = [
-                                name: 'Authorization', 
-                                value: "Basic ${encodedAuth}"
-                            ]
-                            
                             // 1. Native Jenkins Polling for the Task Status
                             def status = "PENDING"
                             while (status == "PENDING" || status == "IN_PROGRESS") {
@@ -79,7 +71,7 @@ pipeline {
                                 
                                 def response = httpRequest(
                                     url: taskUrl,
-                                    customHeaders: [authHeader],
+                                    authentication: 'sonarqube-api-credential', // Direct credential ID lookup
                                     quiet: true
                                 )
                                 def json = readJSON text: response.content
@@ -87,22 +79,17 @@ pipeline {
                             }
                             
                             if (status == "SUCCESS") {
-                                // Extract the completion analysis identity marker
-                                def response = httpRequest(
-                                    url: taskUrl, 
-                                    customHeaders: [authHeader], 
-                                    quiet: true
-                                )
+                                def response = httpRequest(url: taskUrl, authentication: 'sonarqube-api-credential', quiet: true)
                                 def json = readJSON text: response.content
                                 def finalAnalysisId = json.task.analysisId
                                 
                                 echo "Task analysis ID extracted: ${finalAnalysisId}"
                                 
-                                // 2. Native Jenkins Fetching for the Quality Gate Metric
+                                // 2. Fetch the Quality Gate Metric
                                 def gateUrl = "https://sonarcloud.io{finalAnalysisId}"
                                 def gateResponse = httpRequest(
                                     url: gateUrl,
-                                    customHeaders: [authHeader],
+                                    authentication: 'sonarqube-api-credential',
                                     quiet: true
                                 )
                                 
@@ -122,6 +109,7 @@ pipeline {
                 }
             }
         }
+
 
 
         stage('Trivy FS Scan') {
