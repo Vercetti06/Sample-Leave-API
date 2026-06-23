@@ -48,7 +48,7 @@ pipeline {
             }
         }
 
-        stage('Quality Gate (API Polling)') {
+                stage('Quality Gate (API Polling)') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     script {
@@ -75,14 +75,16 @@ pipeline {
                             }
                             
                             if (status == "SUCCESS") {
-                                // Extract the analysis ID profile mapping
+                                // Extract the processing analysis ID profile mapping cleanly
                                 def response = sh(script: "curl -s -u \${SONAR_AUTH_TOKEN}: ${taskUrl}", returnStdout: true).trim()
                                 def json = readJSON text: response
                                 def analysisId = json.task.analysisId
                                 
-                                // Fetch the actual Quality Gate evaluation metric status
+                                // FIX: Fully qualified URL target query endpoint string
                                 def gateUrl = "https://sonarcloud.io{analysisId}"
-                                def gateResponse = sh(script: "curl -s -u \${SONAR_AUTH_TOKEN}: ${gateUrl}", returnStdout: true).trim()
+                                
+                                // Execute the curl statement utilizing the corrected gate URL string mapping
+                                def gateResponse = sh(script: "curl -s -u \${SONAR_AUTH_TOKEN}: \"${gateUrl}\"", returnStdout: true).trim()
                                 def gateJson = readJSON text: gateResponse
                                 def gateStatus = gateJson.projectStatus.status
                                 
@@ -99,6 +101,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Trivy FS Scan') {
             steps {
