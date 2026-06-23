@@ -42,73 +42,14 @@ pipeline {
                               -Dsonar.organization=${SONAR_ORG_KEY} \
                               -Dsonar.sources=Sample-app-dev/ \
                               -Dsonar.inclusions="**/*.py,**/requirements.txt"
+                              -Dsonar.qualitygate.wait=true
                         """
                     }
                 }
             }
         }
 
-                                                              stage('Quality Gate (API Polling)') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    script {
-                        // 1. withSonarQubeEnv automatically provides $SONAR_HOST_URL and $SONAR_AUTH_TOKEN natively
-                        withSonarQubeEnv('SonarQubeCloud') {
-                            echo "Polling SonarQube Cloud API directly via host shell variables..."
-                            
-                            sh '''
-                                # Extract task status URL from the local scanner tracking file safely using standard bash
-                                TASK_URL=$(grep 'ceTaskUrl' .scannerwork/report-task.txt | cut -d= -f2-)
-                                
-                                if [ -z "$TASK_URL" ]; then
-                                    echo "ERROR: SonarQube task tracking metadata not found!"
-                                    exit 1
-                                fi
-
-                                echo "Targeting Task URL: $TASK_URL"
-                                
-                                # Loop and poll the SonarQube API until the background analysis status switches to SUCCESS
-                                STATUS="PENDING"
-                                while [ "$STATUS" = "PENDING" ] || [ "$STATUS" = "IN_PROGRESS" ]; do
-                                    echo "Analysis processing status: $STATUS. Waiting 10 seconds..."
-                                    sleep 10
-                                    
-                                    # Fetch processing state using direct token variable authentication headers
-                                    RESPONSE=$(curl -s -u "${SONAR_AUTH_TOKEN}:" "$TASK_URL")
-                                    STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
-                                done
-                                
-                                echo "Background processing completed with execution status: $STATUS"
-                                
-                                if [ "$STATUS" = "SUCCESS" ]; then
-                                    # Extract the final analysis ID string cleanly
-                                    ANALYSIS_ID=$(echo "$RESPONSE" | grep -o '"analysisId":"[^"]*' | head -n1 | cut -d'"' -f4)
-                                    echo "Extracted Analysis Identity: $ANALYSIS_ID"
-                                    
-                                    # Request the definitive project Quality Gate evaluation metric status
-                                    GATE_URL="https://sonarcloud.io{ANALYSIS_ID}"
-                                    GATE_RESPONSE=$(curl -s -u "${SONAR_AUTH_TOKEN}:" "$GATE_URL")
-                                    GATE_STATUS=$(echo "$GATE_RESPONSE" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
-                                    
-                                    echo "SonarQube Cloud Quality Gate Evaluation Result: [$GATE_STATUS]"
-                                    
-                                    if [ "$GATE_STATUS" = "ERROR" ] || [ "$GATE_STATUS" = "WARN" ]; then
-                                        echo "ERROR: Code failed the SonarQube Quality Gate parameters!"
-                                        exit 1
-                                    fi
-                                else
-                                    echo "ERROR: SonarQube Cloud processing failed or timed out!"
-                                    exit 1
-                                fi
-                             Ley
-                            '''
-                        }
-                    }
-                }
-            }
-        }
-
-
+                                                        
         stage('Trivy FS Scan') {
             steps {
                 // Point Trivy directly the core application files
