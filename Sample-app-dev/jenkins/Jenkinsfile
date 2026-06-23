@@ -51,11 +51,18 @@ pipeline {
 
                                                         
         stage('Trivy FS Scan') {
-            steps {
-                // Point Trivy directly the core application files
-                sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL Sample-app-dev/main.py Sample-app-dev/requirements.txt'
+    steps {
+        script {
+            def targets = [
+                'Sample-app-dev/main.py',
+                'Sample-app-dev/requirements.txt'
+            ]
+            targets.each { t ->
+                sh "trivy fs --exit-code 0 --severity HIGH,CRITICAL ${t}"
             }
         }
+    }
+}
 
         stage('Unit & Health Test') {
             steps {
