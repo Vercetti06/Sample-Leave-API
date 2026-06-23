@@ -48,68 +48,65 @@ pipeline {
             }
         }
 
-                                                      stage('Quality Gate (API Polling)') {
+                                                              stage('Quality Gate (API Polling)') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     script {
+                        // 1. withSonarQubeEnv automatically provides $SONAR_HOST_URL and $SONAR_AUTH_TOKEN natively
                         withSonarQubeEnv('SonarQubeCloud') {
-                            echo "Polling SonarQube Cloud API for Quality Gate status..."
+                            echo "Polling SonarQube Cloud API directly via host shell variables..."
                             
-                            def taskFile = ".scannerwork/report-task.txt"
-                            if (!fileExists(taskFile)) {
-                                error "SonarQube metadata task file not found!"
-                            }
-                            
-                            def props = readProperties file: taskFile
-                            def taskUrl = props['ceTaskUrl']
-                            
-                            // 1. Native Jenkins Polling for the Task Status
-                            def status = "PENDING"
-                            while (status == "PENDING" || status == "IN_PROGRESS") {
-                                echo "Analysis processing status: ${status}. Waiting 10 seconds..."
-                                sleep 10
+                            sh '''
+                                # Extract task status URL from the local scanner tracking file safely using standard bash
+                                TASK_URL=$(grep 'ceTaskUrl' .scannerwork/report-task.txt | cut -d= -f2-)
                                 
-                                def response = httpRequest(
-                                    url: taskUrl,
-                                    authentication: 'sonarqube-api-credential', // Direct credential ID lookup
-                                    quiet: true
-                                )
-                                def json = readJSON text: response.content
-                                status = json.task.status
-                            }
-                            
-                            if (status == "SUCCESS") {
-                                def response = httpRequest(url: taskUrl, authentication: 'sonarqube-api-credential', quiet: true)
-                                def json = readJSON text: response.content
-                                def finalAnalysisId = json.task.analysisId
+                                if [ -z "$TASK_URL" ]; then
+                                    echo "ERROR: SonarQube task tracking metadata not found!"
+                                    exit 1
+                                fi
+
+                                echo "Targeting Task URL: $TASK_URL"
                                 
-                                echo "Task analysis ID extracted: ${finalAnalysisId}"
+                                # Loop and poll the SonarQube API until the background analysis status switches to SUCCESS
+                                STATUS="PENDING"
+                                while [ "$STATUS" = "PENDING" ] || [ "$STATUS" = "IN_PROGRESS" ]; do
+                                    echo "Analysis processing status: $STATUS. Waiting 10 seconds..."
+                                    sleep 10
+                                    
+                                    # Fetch processing state using direct token variable authentication headers
+                                    RESPONSE=$(curl -s -u "${SONAR_AUTH_TOKEN}:" "$TASK_URL")
+                                    STATUS=$(echo "$RESPONSE" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
+                                done
                                 
-                                // 2. Fetch the Quality Gate Metric
-                                def gateUrl = "https://sonarcloud.io{finalAnalysisId}"
-                                def gateResponse = httpRequest(
-                                    url: gateUrl,
-                                    authentication: 'sonarqube-api-credential',
-                                    quiet: true
-                                )
+                                echo "Background processing completed with execution status: $STATUS"
                                 
-                                def gateJson = readJSON text: gateResponse.content
-                                def gateStatus = gateJson.projectStatus.status
-                                
-                                echo "SonarQube Cloud Quality Gate Evaluation Result: [${gateStatus}]"
-                                
-                                if (gateStatus == 'ERROR' || gateStatus == 'WARN') {
-                                    error "Pipeline aborted! Code failed the SonarQube Quality Gate parameters."
-                                }
-                            } else {
-                                error "SonarQube Cloud background processing execution failed: ${status}"
-                            }
+                                if [ "$STATUS" = "SUCCESS" ]; then
+                                    # Extract the final analysis ID string cleanly
+                                    ANALYSIS_ID=$(echo "$RESPONSE" | grep -o '"analysisId":"[^"]*' | head -n1 | cut -d'"' -f4)
+                                    echo "Extracted Analysis Identity: $ANALYSIS_ID"
+                                    
+                                    # Request the definitive project Quality Gate evaluation metric status
+                                    GATE_URL="https://sonarcloud.io{ANALYSIS_ID}"
+                                    GATE_RESPONSE=$(curl -s -u "${SONAR_AUTH_TOKEN}:" "$GATE_URL")
+                                    GATE_STATUS=$(echo "$GATE_RESPONSE" | grep -o '"status":"[^"]*' | head -n1 | cut -d'"' -f4)
+                                    
+                                    echo "SonarQube Cloud Quality Gate Evaluation Result: [$GATE_STATUS]"
+                                    
+                                    if [ "$GATE_STATUS" = "ERROR" ] || [ "$GATE_STATUS" = "WARN" ]; then
+                                        echo "ERROR: Code failed the SonarQube Quality Gate parameters!"
+                                        exit 1
+                                    fi
+                                else
+                                    echo "ERROR: SonarQube Cloud processing failed or timed out!"
+                                    exit 1
+                                fi
+                             Ley
+                            '''
                         }
                     }
                 }
             }
         }
-
 
 
         stage('Trivy FS Scan') {
