@@ -25,7 +25,7 @@ pipeline {
             doGenerateSubmoduleConfigurations: false,
             extensions: [[$class: 'CleanBeforeCheckout']],
             userRemoteConfigs: [[
-                url: 'https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git',
+                url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git",
                 credentialsId: 'github-creds'
             ]]
         ])
