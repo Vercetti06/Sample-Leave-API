@@ -95,7 +95,7 @@ pipeline {
                 sed -i 's|image: ${REGISTRY_USER}/${IMAGE_NAME}:.*|image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}|' ${TARGET_FILE}
 
                 git config user.email "yaswanth.padakandla@gmail.com"
-                git config user.name "Verectti06"
+                git config user.name "Vercetti06"
 
                 git add ${TARGET_FILE}
                 git commit -m "Update image tracking to build ${BUILD_NUMBER}" || true
