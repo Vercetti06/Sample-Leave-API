@@ -112,7 +112,7 @@ pipeline {
                 git config user.name "Vercetti06"
 
                 git add Sample-app-dev/kubernetes-manifests/app/app-deployment.yml
-                git commit -m "Update image tracking to build ${BUILD_NUMBER}" || true
+                git commit -m "Update image tracking to build ${BUILD_NUMBER}"
 
                 git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/Vercetti06/Sample-Leave-API.git
                 git push origin HEAD:main
