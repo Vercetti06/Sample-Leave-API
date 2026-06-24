@@ -10,7 +10,6 @@ pipeline {
         SONAR_ORG_KEY     = 'ercetti06'
 
         TARGET_FILE       = 'Sample-app-dev/kubernetes-manifests/app/app-deployment.yml'
-       // GIT_REPO_URL      = 'https://github.com/Sample-Leave-API.git'
 
         GIT_REPO_NAME = "Sample-Leave-API"
         GIT_USER_NAME = "Vercetti06"
@@ -26,7 +25,7 @@ pipeline {
             doGenerateSubmoduleConfigurations: false,
             extensions: [[$class: 'CleanBeforeCheckout']],
             userRemoteConfigs: [[
-                url: 'https://github.com/Vercetti06/Sample-Leave-API.git',
+                url: 'https://github.com/${env.GIT_USER_NAME}/${env.GIT_REPO_NAME}.git',
                 credentialsId: 'github-creds'
             ]]
         ])
@@ -106,8 +105,8 @@ pipeline {
             passwordVariable: 'GIT_TOKEN'
         )]) {
             sh '''
-                sed -i "s|image: vercetti06/api-leave:.*|image: vercetti06/api-leave:${BUILD_NUMBER}|" Sample-app-dev/kubernetes-manifests/app/app-deployment.yml
-
+                sed -i "s|image: vercetti06/api-leave:.*|image: vercetti06/api-leave:${BUILD_NUMBER}|" ${TARGET_FILE}
+                
                 git config user.email "yaswanth.padakandla@gmail.com"
                 git config user.name "Vercetti06"
 
@@ -120,6 +119,7 @@ pipeline {
         }
     }
 }
+    }
         
     post {
         always {
@@ -132,5 +132,4 @@ pipeline {
             echo 'Pipeline deployment process broken.'
         }
     }
-}
 }
