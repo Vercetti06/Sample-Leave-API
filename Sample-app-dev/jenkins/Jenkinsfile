@@ -10,25 +10,21 @@ pipeline {
         SONAR_ORG_KEY     = 'ercetti06'
 
         TARGET_FILE       = 'Sample-app-dev/kubernetes-manifests/app/app-deployment.yml'
-        GIT_REPO_URL      = 'https://github.com/Sample-Leave-API.git'
+       // GIT_REPO_URL      = 'https://github.com/Sample-Leave-API.git'
+
+        GIT_REPO_NAME = "Sample-Leave-API"
+        GIT_USER_NAME = "Vercetti06"
     }
 
     stages {
-        stage('Checkout Source Code') {
-    steps {
-        deleteDir()
-        checkout([
-            $class: 'GitSCM',
-            branches: [[name: '*/main']],
-            doGenerateSubmoduleConfigurations: false,
-            extensions: [],
-            userRemoteConfigs: [[
-                url: 'https://github.com/Sample-app-dev.git',
-                credentialsId: 'github-creds'
-            ]]
+        stage('Checkout') {
+      steps {
+        checkout([$class: 'GitSCM',
+          branches: [[name: 'main']],
+          userRemoteConfigs: [[url: "https://github.com/${env.GIT_USER_NAME}/${env.GIT_REPO_NAME}.git"]]
         ])
+      }
     }
-}
 
         stage('Build Docker Image') {
             steps {
