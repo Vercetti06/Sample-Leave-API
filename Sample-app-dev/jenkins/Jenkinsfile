@@ -18,13 +18,20 @@ pipeline {
 
     stages {
         stage('Checkout') {
-      steps {
-        checkout([$class: 'GitSCM',
-          branches: [[name: 'main']],
-          userRemoteConfigs: [[url: "https://github.com/${env.GIT_USER_NAME}/${env.GIT_REPO_NAME}.git"]]
+    steps {
+        deleteDir()
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: '*/main']],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [[$class: 'CleanBeforeCheckout']],
+            userRemoteConfigs: [[
+                url: 'https://github.com/Vercetti06/Sample-Leave-API.git',
+                credentialsId: 'github-creds'
+            ]]
         ])
-      }
     }
+}
 
         stage('Build Docker Image') {
             steps {
@@ -51,10 +58,11 @@ pipeline {
         }
 
         stage('Trivy FS Scan') {
-            steps {
-                sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL Sample-app-dev'
-            }
-        }
+    steps {
+        sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL Sample-app-dev/main.py'
+        sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL Sample-app-dev/requirements.txt'
+    }
+}
 
         stage('Unit & Health Test') {
             steps {
@@ -97,22 +105,22 @@ pipeline {
             usernameVariable: 'GIT_USER',
             passwordVariable: 'GIT_TOKEN'
         )]) {
-            sh """
-                sed -i 's|image: ${REGISTRY_USER}/${IMAGE_NAME}:.*|image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}|' ${TARGET_FILE}
+            sh '''
+                sed -i "s|image: vercetti06/api-leave:.*|image: vercetti06/api-leave:${BUILD_NUMBER}|" Sample-app-dev/kubernetes-manifests/app/app-deployment.yml
 
                 git config user.email "yaswanth.padakandla@gmail.com"
                 git config user.name "Vercetti06"
 
-                git add ${TARGET_FILE}
+                git add Sample-app-dev/kubernetes-manifests/app/app-deployment.yml
                 git commit -m "Update image tracking to build ${BUILD_NUMBER}" || true
 
-                git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/Sample-Leave-API.git
+                git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/Vercetti06/Sample-Leave-API.git
                 git push origin HEAD:main
-            """
+            '''
         }
     }
 }
-
+        
     post {
         always {
             sh "docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
