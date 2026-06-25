@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-leave-container
-          image: vercetti06/api-leave:11
+          image: vercetti06/api-leave:1
           ports:
             - containerPort: 8000
           env:
