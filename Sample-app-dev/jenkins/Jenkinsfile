@@ -71,7 +71,8 @@ pipeline {
             steps {
                 sh '''
                     echo "Starting test container..."
-                    docker run -d --name test-container -p 8001:8000 ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    #docker run -d --name test-container -p 8001:8000 ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker run -d --name test-container -p 8001:8000 ${ECR_REPO}:${BUILD_NUMBER}
 
                     echo "Giving application lifecycle initialization room..."
                     sleep 5
