@@ -2,9 +2,12 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY_USER     = 'vercetti06'
-        IMAGE_NAME        = 'api-leave'
-        DOCKER_HUB        = credentials('docker-hub-credentials')
+        //REGISTRY_USER     = 'vercetti06'
+        //IMAGE_NAME        = 'api-leave'
+        //DOCKER_HUB        = credentials('docker-hub-credentials')
+        AWS_ACCOUNT_ID   = credentials('aws-account-id')
+        AWS_REGION       = 'us-east-1'
+        ECR_REPO         = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/leave-api"
 
         SONAR_PROJECT_KEY = 'Vercetti06_Sample-Leave-API'
         SONAR_ORG_KEY     = 'ercetti06'
@@ -34,7 +37,8 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} Sample-app-dev/"
+               // sh "docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} Sample-app-dev/"
+            sh "docker build -t ${ECR_REPO}:${BUILD_NUMBER} Sample-app-dev/"
             }
         }
 
@@ -84,15 +88,19 @@ pipeline {
 
         stage('Trivy Image Scan') {
             steps {
-                sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                //sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${ECR_REPO}:${BUILD_NUMBER}"
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
                 sh '''
-                    echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
-                    docker push ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    #echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
+                    #docker push ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+                    docker push $ECR_REPO:${BUILD_NUMBER}
                 '''
             }
         }
@@ -105,7 +113,9 @@ pipeline {
             passwordVariable: 'GIT_TOKEN'
         )]) {
             sh '''
-                sed -i "s|image: vercetti06/api-leave:.*|image: vercetti06/api-leave:${BUILD_NUMBER}|" ${TARGET_FILE}
+                #sed -i "s|image: ${REGISTRY_USER}/${IMAGE_NAME}:.*|image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}|" ${TARGET_FILE}
+
+                sed -i "s|image:.*|image: $ECR_REPO:${BUILD_NUMBER}|" ${TARGET_FILE}
                 
                 git config user.email "yaswanth.padakandla@gmail.com"
                 git config user.name "Vercetti06"
@@ -123,7 +133,8 @@ pipeline {
         
     post {
         always {
-            sh "docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
+            //sh "docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
+            sh "docker rmi $ECR_REPO:${BUILD_NUMBER} || true"
         }
         success {
             echo 'Full pipeline passed successfully! Code scanned, image pushed, and manifest updated inline.'
