@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-leave-container
-          image: vercetti06/api-leave:1
+          image: 990002767965.dkr.ecr.us-east-1.amazonaws.com/leave-api:3
           ports:
             - containerPort: 8000
           env:
