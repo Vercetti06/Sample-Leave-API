@@ -79,12 +79,14 @@ pipeline {
 
                     echo "Verifying service endpoints..."
                     curl -f http://localhost:8001/health
-
-                    echo "Tearing down runtime resources..."
-                    docker stop test-container
-                    docker rm test-container
                 '''
             }
+                post {
+        always {
+            echo "Tearing down runtime resources..."
+            sh 'docker rm -f test-container || true'
+        }
+    }
         }
 
         stage('Trivy Image Scan') {
