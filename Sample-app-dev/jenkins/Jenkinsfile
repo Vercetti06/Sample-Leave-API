@@ -7,7 +7,8 @@ pipeline {
         //DOCKER_HUB        = credentials('docker-hub-credentials')
         AWS_ACCOUNT_ID   = credentials('aws-account-id')
         AWS_REGION       = 'us-east-1'
-        ECR_REPO         = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/leave-api"
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_REPO         = "${ECR_REGISTRY}/api-leave"
 
         SONAR_PROJECT_KEY = 'Vercetti06_Sample-Leave-API'
         SONAR_ORG_KEY     = 'ercetti06'
@@ -96,13 +97,13 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push to Image Repo') {
             steps {
                 sh '''
                     #echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
                     #docker push ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
 
-                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
                     docker push $ECR_REPO:${BUILD_NUMBER}
                 '''
             }
