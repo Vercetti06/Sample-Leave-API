@@ -4,20 +4,20 @@
 set -e
 
 echo "================================================================="
-echo "1/5: Updating System and Installing Core Dependencies (Java 21)..."
+echo "1/6: Updating System and Installing Core Dependencies (Java 21)..."
 echo "================================================================="
 sudo apt-get update -y
 sudo apt-get install -y openjdk-21-jdk apt-transport-https gnupg2 curl ca-certificates
 
 echo "================================================================="
-echo "2/5: Installing Docker Engine..."
+echo "2/6: Installing Docker Engine..."
 echo "================================================================="
 sudo apt-get install docker.io -y
 sudo usermod -aG docker ubuntu
 echo "docker installation completed"
 
 echo "================================================================="
-echo "3/5: Installing Kubernetes CLI (kubectl) & Minikube..."
+echo "3/6: Installing Kubernetes CLI (kubectl) & Minikube..."
 echo "================================================================="
 #kubectl CLI installation
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -34,7 +34,7 @@ sudo install minikube-linux-amd64 /usr/local/bin/minikube
 rm minikube-linux-amd64
 
 echo "================================================================="
-echo "4/5: Installing Host-Based Jenkins..."
+echo "4/6: Installing Host-Based Jenkins..."
 # FORCE CLEAN: Wipe out any old, broken, or misconfigured files (e.g., www.jenkins.io)
 sudo rm -f /etc/apt/sources.list.d/jenkins*
 
@@ -64,7 +64,7 @@ sudo systemctl enable jenkins
 sudo systemctl restart jenkins
 
 echo "================================================================="
-echo "5/5: Starting Minikube and Linking Cluster Configs to Jenkins..."
+echo "5/6: Starting Minikube and Linking Cluster Configs to Jenkins..."
 echo "================================================================="
 # We use 'sg docker' here so minikube can start using the docker driver 
 # without requiring you to log out and log back in right now.
@@ -97,6 +97,32 @@ sudo chown -R jenkins:jenkins /var/lib/jenkins/.kube /var/lib/jenkins/.minikube
 sudo systemctl restart jenkins
 
 echo "================================================================="
+echo "6/6: Installing AWS CLI and Trivy on the host..."
+echo "================================================================="
+# AWS CLI installation
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt-get install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+
+#Trivy Installation
+sudo apt-get update -y
+sudo apt-get install wget gnupg
+
+# Add Trivy’s GPG key:
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+
+# Add the Trivy repository:
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+
+# Update package lists and install Trivy 
+sudo apt-get update -y
+sudo apt-get install trivy
+
+# Verify the installation:
+trivy --version
+
+echo "================================================================="
 echo "SETUP COMPLETED SUCCESSFULLY!"
 echo "================================================================="
 echo "1. Jenkins URL: http://YOUR_SERVER_IP:8080"
@@ -107,4 +133,3 @@ echo "⚠️ IMPORTANT: Please run the following command manually in your"
 echo "terminal right now to activate your local user's docker access:"
 echo "     newgrp docker"
 echo "================================================================="
-
