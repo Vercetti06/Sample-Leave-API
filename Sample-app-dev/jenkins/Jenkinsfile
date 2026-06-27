@@ -144,9 +144,22 @@ pipeline {
             sh "docker rmi $ECR_REPO:${BUILD_NUMBER} || true"
         }
         success {
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
+            sh '''
+                curl -X POST -H "Content-type: application/json" \
+                --data "{\\"text\\":\\"✅ Build #${BUILD_NUMBER} succeeded — leave-api deployed via ArgoCD\\"}" \
+                $SLACK_URL
+            '''
             echo 'Full pipeline passed successfully! Code scanned, image pushed, and manifest updated inline.'
         }
-        failure {
+    }
+    failure {
+        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
+            sh '''
+                curl -X POST -H "Content-type: application/json" \
+                --data "{\\"text\\":\\"❌ Build #${BUILD_NUMBER} failed — check Jenkins console\\"}" \
+                $SLACK_URL
+            '''
             echo 'Pipeline deployment process broken.'
         }
     }
