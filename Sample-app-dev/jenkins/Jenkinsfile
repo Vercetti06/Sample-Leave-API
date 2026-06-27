@@ -17,6 +17,7 @@ pipeline {
 
         GIT_REPO_NAME = "Sample-Leave-API"
         GIT_USER_NAME = "Vercetti06"
+        SLACK_URL = credentials('slack-webhook-url')
     }
 
     stages {
@@ -143,22 +144,18 @@ pipeline {
             //sh "docker rmi ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER} || true"
             sh "docker rmi $ECR_REPO:${BUILD_NUMBER} || true"
         }
-        success {
-        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
-            sh '''
-                curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\":\\"✅ Build #${BUILD_NUMBER} succeeded — leave-api deployed via ArgoCD\\"}" \
-                $SLACK_URL
-            '''
-        }
+       success {
+        sh '''
+            curl -X POST -H "Content-type: application/json" \
+            --data '{"text":"✅ Build #'"$BUILD_NUMBER"' succeeded — leave-api deployed via ArgoCD"}' \
+            "$SLACK_URL"
+        '''
     }
     failure {
-        withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
-            sh '''
-                curl -X POST -H "Content-type: application/json" \
-                --data "{\\"text\\":\\"❌ Build #${BUILD_NUMBER} failed — check Jenkins console\\"}" \
-                $SLACK_URL
-            '''
-        }
+        sh '''
+            curl -X POST -H "Content-type: application/json" \
+            --data '{"text":"❌ Build #'"$BUILD_NUMBER"' failed — check Jenkins console"}' \
+            "$SLACK_URL"
+        '''
     }
 }
