@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: leave-api
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Vercetti06/Sample-Leave-API.git
+    targetRevision: main
+    path: Sample-app-dev/kubernetes-manifests/app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
