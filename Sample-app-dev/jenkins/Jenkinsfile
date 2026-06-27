@@ -150,7 +150,6 @@ pipeline {
                 --data "{\\"text\\":\\"✅ Build #${BUILD_NUMBER} succeeded — leave-api deployed via ArgoCD\\"}" \
                 $SLACK_URL
             '''
-            echo 'Full pipeline passed successfully! Code scanned, image pushed, and manifest updated inline.'
         }
     }
     failure {
@@ -160,7 +159,6 @@ pipeline {
                 --data "{\\"text\\":\\"❌ Build #${BUILD_NUMBER} failed — check Jenkins console\\"}" \
                 $SLACK_URL
             '''
-            echo 'Pipeline deployment process broken.'
         }
     }
 }
