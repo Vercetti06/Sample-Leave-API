@@ -143,14 +143,14 @@ pipeline {
     success {
         sh '''
             curl -X POST -H "Content-type: application/json" \
-            --data '{"text":"✅ Build #'"$BUILD_NUMBER"' succeeded — leave-api deployed via ArgoCD"}' \
+            --data '{"text":"Build #'"$BUILD_NUMBER"' succeeded — leave-api deployed via ArgoCD"}' \
             "$SLACK_URL"
         '''
     }
     failure {
         sh '''
             curl -X POST -H "Content-type: application/json" \
-            --data '{"text":"❌ Build #'"$BUILD_NUMBER"' failed — check Jenkins console"}' \
+            --data '{"text":"Build #'"$BUILD_NUMBER"' failed — check Jenkins console"}' \
             "$SLACK_URL"
         '''
     }
