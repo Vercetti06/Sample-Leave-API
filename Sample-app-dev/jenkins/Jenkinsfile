@@ -140,19 +140,18 @@ pipeline {
     }
         
     post {
+        always {
+        sh "docker rmi $ECR_REPO:${BUILD_NUMBER} || true"
+    }
     success {
-        sh '''
-            curl -X POST -H "Content-type: application/json" \
-            --data '{"text":"Build #'"$BUILD_NUMBER"' succeeded — leave-api deployed via ArgoCD"}' \
-            "$SLACK_URL"
-        '''
+    withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
+        sh 'curl -X POST -H "Content-type: application/json" --data "{\\"text\\":\\"Build #${BUILD_NUMBER} succeeded - leave-api deployed via ArgoCD\\"}" "$SLACK_URL"'
     }
-    failure {
-        sh '''
-            curl -X POST -H "Content-type: application/json" \
-            --data '{"text":"Build #'"$BUILD_NUMBER"' failed — check Jenkins console"}' \
-            "$SLACK_URL"
-        '''
+}
+failure {
+    withCredentials([string(credentialsId: 'slack-webhook-url', variable: 'SLACK_URL')]) {
+        sh 'curl -X POST -H "Content-type: application/json" --data "{\\"text\\":\\"Build #${BUILD_NUMBER} failed - check Jenkins console\\"}" "$SLACK_URL"'
     }
+}
 }
 }
